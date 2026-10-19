@@ -60,3 +60,12 @@ The frontend expects the API at `/api` by default. For a separately hosted Worke
 - `GET /api/health`
 
 The API deliberately does not expose a public route to activate a package or credit a wallet. Those operations must be driven by trusted server-side payment verification and the scheduled Worker.
+
+
+## Vercel preview deployment
+
+The repository includes `vercel.json` to use Vite's `dist` output and send client-side dashboard routes to `index.html` while leaving `/api/*` requests untouched. Import this repository into Vercel with the root directory set to `./`, framework preset `Vite`, build command `npm run build`, and output directory `dist`.
+
+For a preview of the feature work, select the Git branch `feature/automatic-vip-earnings` when deploying, or open the pull request and inspect its Vercel preview check. A deployment from `main` will not include commits that exist only on the feature branch. If Vercel's deployment says Ready but shows a 404, verify the deployed commit and branch before troubleshooting the app itself.
+
+The Vercel static frontend does not host the Cloudflare Worker API. Before testing registration, login, dashboard data, or checkout, set the Vercel environment variable `VITE_API_BASE_URL` to the deployed HTTPS Cloudflare Worker API base URL (ending in the worker origin, without an extra `/api` if the frontend's default route prefix is being used; set it to the API prefix such as `https://your-worker.example.workers.dev/api` when using the current frontend routes). Configure the Worker `APP_ORIGIN` to the exact Vercel preview origin. Preview environments must use sandbox payment credentials only. Never enable VIP packages or real payouts until the payment lifecycle has been tested end-to-end.
