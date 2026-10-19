@@ -24,7 +24,7 @@ npx wrangler deploy
 
 Set `APP_ORIGIN` to the exact HTTPS origin of the deployed frontend. Do not use a wildcard origin with credentialed cookies. The session cookie is Secure and will not work over plain HTTP in production.
 
-## 3. Deploy the frontend
+## 3. Configure Kora payments\n\nSet `KORA_SECRET_KEY` as a Cloudflare Worker secret (never put it in Vite variables or frontend code). Set `KORA_WEBHOOK_URL` to the public HTTPS URL ending in `/api/webhooks/korapay`. Optionally set `KORA_API_BASE` for the Kora sandbox API base while testing. Keep `APP_ORIGIN` set to the exact frontend origin. The frontend checkout button remains disabled until the selected package has a configured price and is enabled in D1.\n\nUse Kora sandbox credentials first. Confirm the actual charge verification response shape in sandbox, duplicate webhook delivery, amount mismatch, wrong currency, failed payments, and delayed webhook handling before live use.\n\n## 4. Deploy the frontend
 
 Deploy the repository as a Vite app on Cloudflare Pages or another static host.
 
@@ -34,7 +34,7 @@ Deploy the repository as a Vite app on Cloudflare Pages or another static host.
 
 The frontend uses `/api` by default. Configure a same-origin reverse proxy for `/api/*` to the Worker, or define `VITE_API_BASE_URL` as the Worker API base URL and ensure `APP_ORIGIN` matches the exact frontend origin.
 
-## 4. Verify
+## 5. Verify
 
 - Visit `/api/health` and confirm the API returns JSON with `ok: true`.
 - Register a test account, sign out, sign back in, and verify dashboard access.
