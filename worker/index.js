@@ -480,6 +480,10 @@ async function handle(request, env) {
 }
 
 async function creditDuePackages(env) {
+  // Keep the database-backed authentication throttle table bounded over time.
+  await env.DB.prepare('DELETE FROM auth_rate_limits WHERE updated_at < ?')
+    .bind(Math.floor(Date.now() / 1000) - 24 * 60 * 60).run();
+
   const now = new Date();
   const nowIso = now.toISOString();
   const dayMs = 24 * 60 * 60 * 1000;
