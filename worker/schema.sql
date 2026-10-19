@@ -95,6 +95,15 @@ CREATE TABLE IF NOT EXISTS wallet_ledger (
 );
 CREATE INDEX IF NOT EXISTS ledger_user_created_idx ON wallet_ledger(user_id,created_at DESC);
 
+-- Reject debits that would overdraw the wallet; otherwise the ledger and cached
+-- balance could disagree because the AFTER trigger intentionally avoids negatives.
+CREATE TRIGGER IF NOT EXISTS ledger_prevent_negative_balance
+BEFORE INSERT ON wallet_ledger
+WHEN (SELECT balance_kobo FROM users WHERE id=NEW.user_id) + NEW.amount_kobo < 0
+BEGIN
+  SELECT RAISE(ABORT, 'Insufficient wallet balance');
+END;
+
 CREATE TRIGGER IF NOT EXISTS ledger_balance_after_insert
 AFTER INSERT ON wallet_ledger
 BEGIN
