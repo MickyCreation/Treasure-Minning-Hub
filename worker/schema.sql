@@ -29,7 +29,21 @@ CREATE TABLE IF NOT EXISTS vip_packages (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
-CREATE TABLE IF NOT EXISTS payment_events (
+
+CREATE TABLE IF NOT EXISTS payment_orders (
+  reference TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  package_id INTEGER NOT NULL REFERENCES vip_packages(id),
+  amount_kobo INTEGER NOT NULL CHECK(amount_kobo > 0),
+  currency TEXT NOT NULL CHECK(currency = 'NGN'),
+  status TEXT NOT NULL CHECK(status IN ('pending','processed','failed','cancelled')),
+  checkout_url TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS payment_orders_user_created_idx ON payment_orders(user_id,created_at DESC);
+CREATE INDEX IF NOT EXISTS payment_orders_status_idx ON payment_orders(status,created_at);
+\nCREATE TABLE IF NOT EXISTS payment_events (
   provider TEXT NOT NULL,
   provider_reference TEXT NOT NULL,
   user_id TEXT NOT NULL REFERENCES users(id),
