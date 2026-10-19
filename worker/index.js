@@ -24,6 +24,21 @@ async function passwordHash(password, salt) {
   const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: encoder.encode(salt), iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' }, material, 256);
   return [...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
+async function authRateLimited(request, env, scope, limit = 10, windowSeconds = 900) {
+  // Hash the client IP before storage; never persist raw IP addresses in the rate-limit table.
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown-client';
+  const key = await sha256(`${scope}:${ip}`);
+  const now = Math.floor(Date.now() / 1000);
+  await env.DB.prepare(`INSERT INTO auth_rate_limits (bucket_key,window_started_at,attempt_count,updated_at)
+    VALUES (?,?,1,?)
+    ON CONFLICT(bucket_key) DO UPDATE SET
+      attempt_count=CASE WHEN auth_rate_limits.window_started_at<=? THEN 1 ELSE auth_rate_limits.attempt_count+1 END,
+      window_started_at=CASE WHEN auth_rate_limits.window_started_at<=? THEN excluded.window_started_at ELSE auth_rate_limits.window_started_at END,
+      updated_at=excluded.updated_at`)
+    .bind(key, now, now, now-windowSeconds, now-windowSeconds).run();
+  const row = await env.DB.prepare('SELECT attempt_count FROM auth_rate_limits WHERE bucket_key=?').bind(key).first();
+  return Number(row?.attempt_count || 0) > limit;
+}
 function constantTimeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
   let diff = 0;
@@ -254,6 +269,7 @@ async function handle(request, env) {
 
   if (path === '/api/auth/register' && request.method === 'POST') {
     assertSameOrigin(request, env);
+    if (await authRateLimited(request, env, 'register', 5)) return json({ error: 'Too many registration attempts. Please wait 15 minutes and try again.' }, 429);
     const body = await request.json().catch(() => null);
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
     const email = cleanEmail(body?.email);
@@ -279,6 +295,7 @@ async function handle(request, env) {
 
   if (path === '/api/auth/login' && request.method === 'POST') {
     assertSameOrigin(request, env);
+    if (await authRateLimited(request, env, 'login', 10)) return json({ error: 'Too many sign-in attempts. Please wait 15 minutes and try again.' }, 429);
     const body = await request.json().catch(() => null);
     const email = cleanEmail(body?.email);
     const password = body?.password;
