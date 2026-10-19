@@ -14,9 +14,9 @@ A React + Vite dashboard with a Cloudflare Worker API and Cloudflare D1 schema f
 
 ## Important activation and payment boundary
 
-Package prices are intentionally unset and all packages are disabled in the seed data. Do not enable packages or accept money until the owner has set the real prices and connected a payment provider's server-side verification/webhook. A browser redirect or client-supplied “paid” flag must never activate a package. The schema reserves unique payment references for provider verification; a provider-specific signed webhook and atomic activation flow still needs to be implemented before live use.
+Package prices are intentionally unset and all packages are disabled in the seed data. Do not enable packages or accept money until the owner has set the real prices and connected a payment provider's server-side verification/webhook. A browser redirect or client-supplied “paid” flag must never activate a package. A Kora checkout initializer and signed webhook flow are scaffolded. The webhook verifies the HMAC signature, queries Kora's transaction API, checks amount/currency/reference, then activates the package through idempotent D1 writes. Configure and test this in Kora sandbox first; do not enable packages until prices, webhook URL, secret binding, expiry policy, and the full payment lifecycle have been reviewed.
 
-This repository does not currently integrate a payment gateway, withdrawals, identity/KYC verification, admin controls, or an existing production wallet. Do not use it to handle real customer funds until those parts are implemented, reviewed, and tested.
+This repository now includes a Kora pay-in checkout/webhook scaffold, but does not include withdrawals/payouts, identity/KYC verification, admin controls, email verification, or password recovery. Do not use it to handle real customer funds until those parts are implemented, reviewed, and tested.
 
 ## Run the frontend
 
@@ -41,7 +41,7 @@ The frontend expects the API at `/api` by default. For a separately hosted Worke
 
 ## Before production
 
-- Implement and test a payment-provider webhook with signature verification, amount/currency/reference checks, replay protection, and atomic package activation.
+- Configure Kora secret as a Cloudflare Worker secret, set the public webhook URL to `/api/webhooks/korapay`, and test checkout + webhook verification in sandbox. Review amount/currency/reference checks and idempotent activation before enabling packages.
 - Configure real VIP prices and an explicit expiry policy before enabling packages.
 - Add rate limiting and abuse monitoring to authentication endpoints, email verification, password reset, and appropriate account recovery.
 - Test scheduled earnings under duplicate/overlapping cron executions and late runs. The scheduler currently credits at most one overdue 24-hour period per activation per hourly run; prolonged outages therefore catch up gradually. Review this policy and expiry behavior before enabling packages.
