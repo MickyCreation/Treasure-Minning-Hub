@@ -1,6 +1,6 @@
 # Deployment checklist
 
-This is a deployment guide for the initial application scaffold. Do not enable VIP packages or process customer funds until the payment activation flow and all production controls are implemented.
+This is a deployment guide for the initial application scaffold. The Kora checkout/webhook flow is implemented as a scaffold, but it must be verified end-to-end in sandbox and reviewed before any VIP packages are enabled or customer funds are processed.
 
 ## 1. Configure Cloudflare D1
 
