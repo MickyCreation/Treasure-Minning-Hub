@@ -39,3 +39,16 @@ test('cross-origin API request is rejected', async () => {
   );
   assert.equal(response.status, 403);
 });
+
+test('Kora webhook rejects an invalid signature before database access', async () => {
+  const response = await worker.fetch(
+    new Request('https://example.test/api/webhooks/korapay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'charge.success', data: { reference: 'TMH-TEST-REF', status: 'success' } }),
+    }),
+    { ...env, KORA_SECRET_KEY: 'test_secret_only' },
+  );
+  assert.equal(response.status, 401);
+  assert.match((await response.json()).error, /signature/i);
+});
