@@ -36,7 +36,8 @@ function AuthScreen({ onAuth }) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');\n  const [checkoutPackage, setCheckoutPackage] = useState(null);
+  const [error, setError] = useState('');
+  const [checkoutPackage, setCheckoutPackage] = useState(null);
 
   async function submit(event) {
     event.preventDefault();
@@ -106,7 +107,16 @@ function App() {
 
   const totalDaily = useMemo(() => (dashboard?.activations || []).reduce((sum, item) => sum + Number(item.dailyEarning || 0), 0), [dashboard]);
 
-  async function checkout(pkg) {\n    setError(''); setNotice(''); setCheckoutPackage(pkg.id);\n    try {\n      const data = await request('/vip/checkout', { method: 'POST', body: JSON.stringify({ packageId: pkg.id }) });\n      if (!data.checkoutUrl || !data.checkoutUrl.startsWith('https://checkout.korapay.com/')) throw new Error('The payment provider returned an invalid checkout link.');\n      window.location.assign(data.checkoutUrl);\n    } catch (err) { setError(err.message); setCheckoutPackage(null); }\n  }\n\n  async function logout() {
+  async function checkout(pkg) {
+    setError(''); setNotice(''); setCheckoutPackage(pkg.id);
+    try {
+      const data = await request('/vip/checkout', { method: 'POST', body: JSON.stringify({ packageId: pkg.id }) });
+      if (!data.checkoutUrl || !data.checkoutUrl.startsWith('https://checkout.korapay.com/')) throw new Error('The payment provider returned an invalid checkout link.');
+      window.location.assign(data.checkoutUrl);
+    } catch (err) { setError(err.message); setCheckoutPackage(null); }
+  }
+
+  async function logout() {
     try { await request('/auth/logout', { method: 'POST', body: '{}' }); } catch {}
     setUser(null); setDashboard(null); setNotice('You have signed out.');
   }
