@@ -27,9 +27,16 @@ Set `APP_ORIGIN` to the exact HTTPS origin of the deployed frontend. Do not use 
 
 ## Administrator access
 
-Set the Worker environment variable `ADMIN_EMAILS` to a comma-separated allowlist of exact administrator email addresses, for example `admin@example.com,ops@example.com`. Use addresses that already belong to trusted accounts and ensure the matching account has registered. Do not add a public sign-up email or expose admin controls based only on a browser-side flag. The `/api/admin/overview` route independently checks the authenticated account email against this server-side allowlist and returns `403` for other users. Treat access to account email addresses and payment records as sensitive; limit the allowlist to the smallest practical group.
+Use the server-side Worker variable `ADMIN_USER_IDS` as a comma-separated allowlist of immutable account IDs. Because email verification is not implemented, **do not grant admin access by email address**: a person could register an unverified email address before its legitimate owner.
 
-The administrator screen is read-only for monitoring: it shows aggregate counts, recent users, payment orders, and package settings. It does not implement payouts, user suspension, manual wallet adjustments, or editing VIP prices/enabled flags.
+To provision an administrator safely:
+1. Create the intended administrator account using the normal sign-up flow.
+2. Verify the account identity out-of-band before granting privileges.
+3. In Cloudflare D1, look up that account's `id` by its email using the Cloudflare dashboard or a trusted admin terminal. Keep the ID private.
+4. Set `ADMIN_USER_IDS` to that exact ID (or a comma-separated list of approved IDs) in the Worker environment and redeploy the Worker.
+5. Sign out and back in, then confirm the Admin dashboard button appears and that a normal account receives HTTP 403 from `/api/admin/overview`.
+
+Never expose the ID allowlist through frontend variables. The administrator screen is read-only for monitoring: it shows aggregate counts, recent users, payment orders, and package settings. It does not implement payouts, user suspension, manual wallet adjustments, or editing VIP prices/enabled flags. Restrict admin access to the smallest practical group because the screen includes sensitive account and payment records.
 
 ## 3. Configure Kora payments
 
