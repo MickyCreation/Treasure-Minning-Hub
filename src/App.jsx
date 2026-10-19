@@ -87,6 +87,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [paymentProvider, setPaymentProvider] = useState('korapay');
 
   const refresh = useCallback(async () => {
     const data = await request('/dashboard');
@@ -110,8 +111,9 @@ function App() {
   async function checkout(pkg) {
     setError(''); setNotice(''); setCheckoutPackage(pkg.id);
     try {
-      const data = await request('/vip/checkout', { method: 'POST', body: JSON.stringify({ packageId: pkg.id }) });
-      if (!data.checkoutUrl || !data.checkoutUrl.startsWith('https://checkout.korapay.com/')) throw new Error('The payment provider returned an invalid checkout link.');
+      const data = await request('/vip/checkout', { method: 'POST', body: JSON.stringify({ packageId: pkg.id, provider: paymentProvider }) });
+      const allowedCheckoutHost = paymentProvider === 'flutterwave' ? 'https://checkout.flutterwave.com/' : 'https://checkout.korapay.com/';
+      if (!data.checkoutUrl || !data.checkoutUrl.startsWith(allowedCheckoutHost)) throw new Error('The payment provider returned an invalid checkout link.');
       window.location.assign(data.checkoutUrl);
     } catch (err) { setError(err.message); setCheckoutPackage(null); }
   }
@@ -156,6 +158,14 @@ function App() {
         <section className="section-block" id="packages">
           <div className="section-heading"><div><span className="eyebrow">CHOOSE YOUR LEVEL</span><h2>VIP packages</h2></div><span className="section-count">6 LEVELS</span></div>
           <p className="section-intro">Daily earning figures shown below are package settings, not a guarantee of returns. A package is activated only after payment verification is connected and confirmed.</p>
+          <div className="payment-provider-picker">
+            <label htmlFor="payment-provider">Payment method</label>
+            <select id="payment-provider" value={paymentProvider} onChange={event => setPaymentProvider(event.target.value)}>
+              <option value="korapay">Kora</option>
+              <option value="flutterwave">Flutterwave</option>
+            </select>
+            <p className="muted">Choose your preferred secure checkout provider. Availability depends on server configuration.</p>
+          </div>
           <div className="package-grid">
             {(dashboard?.packages || []).map((pkg, index) => <article className={`package-card ${index === 2 ? 'featured' : ''}`} key={pkg.id}>
               <div className="package-top"><span className="vip-label">VIP {pkg.level}</span><span className="package-symbol">{['◈','✧','✦','◇','✺','✷'][index]}</span></div>
