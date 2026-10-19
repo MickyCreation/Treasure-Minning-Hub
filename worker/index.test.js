@@ -40,6 +40,16 @@ test('cross-origin API request is rejected', async () => {
   assert.equal(response.status, 403);
 });
 
+
+test('administrator overview is protected by authentication', async () => {
+  const response = await worker.fetch(
+    new Request('https://example.test/api/admin/overview'),
+    env,
+  );
+  assert.equal(response.status, 401);
+  assert.match((await response.json()).error, /sign in/i);
+});
+
 test('Kora webhook rejects an invalid signature before database access', async () => {
   const response = await worker.fetch(
     new Request('https://example.test/api/webhooks/korapay', {
