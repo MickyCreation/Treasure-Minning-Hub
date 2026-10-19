@@ -11,5 +11,5 @@ database_name = "treasure-minning-hub"
 database_id = "REPLACE_WITH_YOUR_CLOUDFLARE_D1_DATABASE_ID"
 
 [vars]
-# Set APP_ORIGIN to your exact deployed frontend origin, e.g. https://your-site.pages.dev
+# Set APP_ORIGIN to your exact deployed frontend origin, e.g. https://your-site.pages.dev\n# Add KORA_SECRET_KEY with `npx wrangler secret put KORA_SECRET_KEY`\n# Set KORA_WEBHOOK_URL to the public HTTPS webhook URL\n# For sandbox, configure KORA_API_BASE with the documented sandbox API base.
 APP_ORIGIN = "http://localhost:5173"
