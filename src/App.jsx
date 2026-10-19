@@ -39,7 +39,6 @@ function AuthScreen({ onAuth, initialMode = 'login', onBack }) {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [checkoutPackage, setCheckoutPackage] = useState(null);
 
   async function submit(event) {
     event.preventDefault();
