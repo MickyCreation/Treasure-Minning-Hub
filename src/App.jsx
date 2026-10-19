@@ -36,7 +36,7 @@ function AuthScreen({ onAuth }) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState('');\n  const [checkoutPackage, setCheckoutPackage] = useState(null);
 
   async function submit(event) {
     event.preventDefault();
@@ -106,7 +106,7 @@ function App() {
 
   const totalDaily = useMemo(() => (dashboard?.activations || []).reduce((sum, item) => sum + Number(item.dailyEarning || 0), 0), [dashboard]);
 
-  async function logout() {
+  async function checkout(pkg) {\n    setError(''); setNotice(''); setCheckoutPackage(pkg.id);\n    try {\n      const data = await request('/vip/checkout', { method: 'POST', body: JSON.stringify({ packageId: pkg.id }) });\n      if (!data.checkoutUrl || !data.checkoutUrl.startsWith('https://checkout.korapay.com/')) throw new Error('The payment provider returned an invalid checkout link.');\n      window.location.assign(data.checkoutUrl);\n    } catch (err) { setError(err.message); setCheckoutPackage(null); }\n  }\n\n  async function logout() {
     try { await request('/auth/logout', { method: 'POST', body: '{}' }); } catch {}
     setUser(null); setDashboard(null); setNotice('You have signed out.');
   }
@@ -151,7 +151,7 @@ function App() {
               <div className="package-top"><span className="vip-label">VIP {pkg.level}</span><span className="package-symbol">{['◈','✧','✦','◇','✺','✷'][index]}</span></div>
               <h3>{pkg.name}</h3><div className="daily-amount">{money(pkg.dailyEarning)}<small>/ day</small></div>
               <div className="package-divider" /><p className="package-status">{pkg.priceConfigured ? `Package price: ${money(pkg.price)}` : 'Package price not configured'}</p>
-              <button className="package-button" disabled>{pkg.active ? 'Active package' : 'Activation unavailable'}</button>
+              <button className="package-button" disabled={pkg.active || !pkg.enabled || !pkg.priceConfigured || checkoutPackage === pkg.id} onClick={() => checkout(pkg)}>{pkg.active ? 'Active package' : checkoutPackage === pkg.id ? 'Opening secure checkout…' : pkg.enabled && pkg.priceConfigured ? 'Continue to payment ↗' : 'Not available yet'}</button>
             </article>)}
           </div>
         </section>
