@@ -55,6 +55,8 @@ The frontend expects the API at `/api` by default. For a separately hosted Worke
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 - `GET /api/dashboard`
+- `POST /api/vip/checkout` (authenticated; only enabled and priced packages)
+- `POST /api/webhooks/korapay` (public endpoint; HMAC and server-side transaction verification)
 - `GET /api/health`
 
 The API deliberately does not expose a public route to activate a package or credit a wallet. Those operations must be driven by trusted server-side payment verification and the scheduled Worker.
