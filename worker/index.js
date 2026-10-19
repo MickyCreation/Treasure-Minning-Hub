@@ -127,7 +127,7 @@ async function createKoraCheckout(user, packageId, env) {
     VALUES (?,?,?,?,'NGN','pending',?,?)`)
     .bind(reference, user.id, pkg.id, pkg.price_kobo, now, now).run();
 
-  const base = (env.KORA_API_BASE || 'https://api.korapay.com/merchant').replace(/\\/+$/, '');
+  const base = (env.KORA_API_BASE || 'https://api.korapay.com/merchant').replace(/\/+$/, '');
   let response;
   try {
     response = await fetch(`${base}/api/v1/charges/initialize`, {
@@ -194,7 +194,7 @@ async function handleKoraWebhook(request, env) {
   if (order.status !== 'pending') return json({ error: 'Payment order is not pending.' }, 409);
 
   // Verify with Kora's server API as well as the signed webhook; never trust the redirect or payload alone.
-  const base = (env.KORA_API_BASE || 'https://api.korapay.com/merchant').replace(/\\/+$/, '');
+  const base = (env.KORA_API_BASE || 'https://api.korapay.com/merchant').replace(/\/+$/, '');
   const verificationResponse = await fetch(`${base}/api/v1/charges/${encodeURIComponent(reference)}`, {
     headers: { 'Authorization': `Bearer ${env.KORA_SECRET_KEY}`, 'Accept': 'application/json' },
   });
