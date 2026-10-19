@@ -52,3 +52,17 @@ test('Kora webhook rejects an invalid signature before database access', async (
   assert.equal(response.status, 401);
   assert.match((await response.json()).error, /signature/i);
 });
+
+
+test('Flutterwave webhook rejects an invalid secret hash before database access', async () => {
+  const response = await worker.fetch(
+    new Request('https://example.test/api/webhooks/flutterwave', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'verif-hash': 'wrong-hash' },
+      body: JSON.stringify({ event: 'charge.completed', data: { id: 123, tx_ref: 'FLW-TEST-REFERENCE', status: 'successful' } }),
+    }),
+    { ...env, FLW_SECRET_KEY: 'test_secret_only', FLW_SECRET_HASH: 'expected-hash' },
+  );
+  assert.equal(response.status, 401);
+  assert.match((await response.json()).error, /signature/i);
+});
