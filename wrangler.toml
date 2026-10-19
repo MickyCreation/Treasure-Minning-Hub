@@ -1,0 +1,15 @@
+name = "treasure-minning-hub-api"
+main = "worker/index.js"
+compatibility_date = "2026-10-19"
+
+[triggers]
+crons = ["0 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "treasure-minning-hub"
+database_id = "REPLACE_WITH_YOUR_CLOUDFLARE_D1_DATABASE_ID"
+
+[vars]
+# Set APP_ORIGIN to your exact deployed frontend origin, e.g. https://your-site.pages.dev
+APP_ORIGIN = "http://localhost:5173"
