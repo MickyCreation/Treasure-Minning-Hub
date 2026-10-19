@@ -44,7 +44,7 @@ The frontend expects the API at `/api` by default. For a separately hosted Worke
 - Implement and test a payment-provider webhook with signature verification, amount/currency/reference checks, replay protection, and atomic package activation.
 - Configure real VIP prices and an explicit expiry policy before enabling packages.
 - Add rate limiting and abuse monitoring to authentication endpoints, email verification, password reset, and appropriate account recovery.
-- Test scheduled earnings under duplicate/overlapping cron executions and late runs. Review the chosen catch-up policy and expiration behavior before enabling packages.
+- Test scheduled earnings under duplicate/overlapping cron executions and late runs. The scheduler currently credits at most one overdue 24-hour period per activation per hourly run; prolonged outages therefore catch up gradually. Review this policy and expiry behavior before enabling packages.
 - Implement withdrawals only with server-side payout verification, idempotency, KYC/policy checks where applicable, and atomic balance reservation.
 - Review privacy, legal, consumer-protection, and financial compliance requirements for your operating region.
 
