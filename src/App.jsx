@@ -91,6 +91,28 @@ function AuthScreen({ onAuth, initialMode = 'login', onBack }) {
   );
 }
 
+function AccountHelpScreen({ onBack }) {
+  const [mode, setMode] = useState('forgot');
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true); setMessage(''); setError('');
+    try {
+      const result = await request(mode === 'forgot' ? '/auth/forgot-password' : '/auth/resend-verification', {
+        method: 'POST', body: JSON.stringify({ email: email.trim() }),
+      });
+      setMessage(result.message || 'If the account qualifies, instructions will be sent.');
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+
+  return <main className="auth-shell"><section className="auth-art"><div className="brand-mark">T<span>✦</span></div><p className="eyebrow">ACCOUNT SUPPORT</p><h1>Back to your<br/><em>treasure hub.</em></h1><p className="muted auth-copy">Keep your account secure and use the official recovery process if you lose access.</p></section><section className="auth-panel"><div className="mobile-brand brand-mark">T<span>✦</span></div><button type="button" className="switch-auth auth-back" onClick={onBack}>← Back to sign in</button><p className="eyebrow">ACCOUNT HELP</p><h2>{mode === 'forgot' ? 'Reset your password' : 'Verify your email'}</h2><p className="muted">{mode === 'forgot' ? 'Enter the email associated with your account.' : 'Request a fresh verification message for your account.'}</p><form className="auth-form" onSubmit={submit}><label>Email address<input type="email" autoComplete="email" required maxLength="254" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com"/></label>{error && <div role="alert" className="error-message">{error}</div>}{message && <div role="status" className="notice">{message}</div>}<button className="primary-button" disabled={busy}>{busy ? 'Please wait…' : mode === 'forgot' ? 'Request reset instructions' : 'Request verification email'} <span>↗</span></button></form><p className="switch-auth"><button onClick={() => { setMode(mode === 'forgot' ? 'verify' : 'forgot'); setError(''); setMessage(''); }}>{mode === 'forgot' ? 'Need email verification?' : 'Forgot your password?'}</button></p><p className="fine-print">Account recovery becomes available only after the server-side email delivery and token flow are configured.</p></section></main>;
+}
+
 function LandingScreen({ onSignIn, onRegister }) {
   const packages = [
     ['VIP 1', '₦200', 'daily earning'],
@@ -176,6 +198,7 @@ function App() {
   const [paymentProvider, setPaymentProvider] = useState('korapay');
   const [checkoutPackage, setCheckoutPackage] = useState(null);
   const [authMode, setAuthMode] = useState(null);
+  const [accountHelp, setAccountHelp] = useState(false);
   const [adminData, setAdminData] = useState(null);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState('');
@@ -229,8 +252,9 @@ function App() {
   }
 
   if (loading) return <div className="loading-screen"><div className="spinner" /><p>Opening your treasure hub…</p></div>;
+  if (!user && accountHelp) return <AccountHelpScreen onBack={() => setAccountHelp(false)} />;
   if (!user && !authMode) return <LandingScreen onSignIn={() => setAuthMode('login')} onRegister={() => setAuthMode('register')} />;
-  if (!user) return <AuthScreen onAuth={async account => { setUser(account); setAuthMode(null); try { await refresh(); } catch (err) { setError(err.message); } }} initialMode={authMode} onBack={() => setAuthMode(null)} />;
+  if (!user) return <AuthScreen onAuth={async account => { setUser(account); setAuthMode(null); try { await refresh(); } catch (err) { setError(err.message); } }} initialMode={authMode} onBack={() => setAuthMode(null)} onAccountHelp={() => setAccountHelp(true)} />;
 
   return (
     <div className="app-shell">
