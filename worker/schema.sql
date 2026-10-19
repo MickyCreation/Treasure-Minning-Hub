@@ -19,6 +19,14 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires_at);
 
+CREATE TABLE IF NOT EXISTS auth_rate_limits (
+  bucket_key TEXT PRIMARY KEY,
+  window_started_at INTEGER NOT NULL,
+  attempt_count INTEGER NOT NULL CHECK(attempt_count >= 0),
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS auth_rate_limits_updated_idx ON auth_rate_limits(updated_at);
+
 CREATE TABLE IF NOT EXISTS vip_packages (
   id INTEGER PRIMARY KEY,
   level INTEGER NOT NULL UNIQUE CHECK(level BETWEEN 1 AND 6),
