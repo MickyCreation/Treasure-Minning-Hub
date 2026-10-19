@@ -354,7 +354,7 @@ async function handleFlutterwaveWebhook(request, env) {
       String(tx.status || '').toLowerCase() !== 'successful' ||
       String(tx.tx_ref || '') !== order.reference ||
       String(tx.currency || '').toUpperCase() !== order.currency ||
-      !Number.isFinite(amountKobo) || amountKobo < order.amount_kobo) {
+      !Number.isFinite(amountKobo) || amountKobo !== order.amount_kobo) {
     console.error('Flutterwave transaction verification did not match order', reference, verifyResponse.status);
     return json({ error: 'Flutterwave payment verification did not match the order.' }, 409);
   }
