@@ -34,6 +34,8 @@ function AuthScreen({ onAuth, initialMode = 'login', onBack }) {
   const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -41,7 +43,10 @@ function AuthScreen({ onAuth, initialMode = 'login', onBack }) {
 
   async function submit(event) {
     event.preventDefault();
-    setBusy(true); setError('');
+    setError('');
+    if (mode === 'register' && password !== confirmPassword) { setError('Your passwords do not match.'); return; }
+    if (mode === 'register' && !acceptedTerms) { setError('Please confirm that you have read and accepted the account terms.'); return; }
+    setBusy(true);
     try {
       const data = await request(`/auth/${mode}`, {
         method: 'POST',
@@ -72,10 +77,15 @@ function AuthScreen({ onAuth, initialMode = 'login', onBack }) {
           {mode === 'register' && <label>Full name<input autoComplete="name" required minLength="2" maxLength="80" value={name} onChange={e => setName(e.target.value)} placeholder="Your full name" /></label>}
           <label>Email address<input autoComplete="email" type="email" required maxLength="254" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" /></label>
           <label>Password<input autoComplete={mode === 'login' ? 'current-password' : 'new-password'} type="password" required minLength={mode === 'register' ? 10 : 1} maxLength="128" value={password} onChange={e => setPassword(e.target.value)} placeholder={mode === 'register' ? 'At least 10 characters' : 'Enter your password'} /></label>
+          {mode === 'register' && <>
+            <label>Confirm password<input autoComplete="new-password" type="password" required minLength="10" maxLength="128" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Enter the same password again" /></label>
+            <label className="terms-check"><input type="checkbox" required checked={acceptedTerms} onChange={e => setAcceptedTerms(e.target.checked)} /> <span>I confirm my details are accurate and I have read the platform terms and privacy information.</span></label>
+            <p className="fine-print">Use a unique password of at least 10 characters. Email verification and password recovery must be configured separately.</p>
+          </>}
           {error && <div role="alert" className="error-message">{error}</div>}
           <button className="primary-button" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'} <span>↗</span></button>
         </form>
-        <p className="switch-auth">{mode === 'login' ? 'New to the hub?' : 'Already have an account?'} <button onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}>{mode === 'login' ? 'Create account' : 'Sign in'}</button></p>
+        <p className="switch-auth">{mode === 'login' ? 'New to the hub?' : 'Already have an account?'} <button onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setConfirmPassword(''); setAcceptedTerms(false); }}>{mode === 'login' ? 'Create account' : 'Sign in'}</button></p>
         <p className="fine-print">Keep your password private. Never share your sign-in details with anyone.</p>
       </section>
     </main>
