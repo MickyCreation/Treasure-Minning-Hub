@@ -16,7 +16,7 @@ A React + Vite dashboard with a Cloudflare Worker API and Cloudflare D1 schema f
 
 Package prices are intentionally unset and all packages are disabled in the seed data. Do not enable packages or accept money until the owner has set the real prices and connected a payment provider's server-side verification/webhook. A browser redirect or client-supplied “paid” flag must never activate a package. A Kora checkout initializer and signed webhook flow are scaffolded. The webhook verifies the HMAC signature, queries Kora's transaction API, checks amount/currency/reference, then activates the package through idempotent D1 writes. Configure and test this in Kora sandbox first; do not enable packages until prices, webhook URL, secret binding, expiry policy, and the full payment lifecycle have been reviewed.
 
-This repository now includes a Kora pay-in checkout/webhook scaffold, but does not include withdrawals/payouts, identity/KYC verification, admin controls, email verification, or password recovery. Do not use it to handle real customer funds until those parts are implemented, reviewed, and tested.
+The repository includes Kora and Flutterwave pay-in checkout/webhook implementations, but does not include withdrawals/payouts, identity/KYC verification, admin controls, email verification, or password recovery. Do not use it to handle real customer funds until those parts are implemented, reviewed, and tested.
 
 ## Run the frontend
 
@@ -43,7 +43,7 @@ The frontend expects the API at `/api` by default. For a separately hosted Worke
 
 - Authentication endpoints now include a database-backed per-IP rate limit (5 registration attempts or 10 sign-in attempts per 15-minute window). Apply the updated `worker/schema.sql` to the D1 database before deploying this Worker revision; the schema is idempotent and preserves existing tables/data.
 
-- Configure Kora secret as a Cloudflare Worker secret, set the public webhook URL to `/api/webhooks/korapay`, and test checkout + webhook verification in sandbox. Review amount/currency/reference checks and idempotent activation before enabling packages.
+- Configure `KORA_SECRET_KEY` and `KORA_WEBHOOK_URL` as Cloudflare Worker secrets/variables, set the Kora webhook URL to `/api/webhooks/korapay`, and test checkout + webhook verification in sandbox.\n- Configure `FLW_SECRET_KEY` and `FLW_SECRET_HASH` as Cloudflare Worker secrets, set the Flutterwave webhook URL to `/api/webhooks/flutterwave`, configure the same secret hash in Flutterwave Dashboard → Settings → Webhooks, and test checkout + webhook verification in sandbox.\n- Both payment providers use the same order table; keep all VIP packages disabled until each provider is independently verified end-to-end.
 - Configure real VIP prices and an explicit expiry policy before enabling packages.
 - Add rate limiting and abuse monitoring to authentication endpoints, email verification, password reset, and appropriate account recovery.
 - Test scheduled earnings under duplicate/overlapping cron executions and late runs. The scheduler currently credits at most one overdue 24-hour period per activation per hourly run; prolonged outages therefore catch up gradually. Review this policy and expiry behavior before enabling packages.
@@ -57,8 +57,8 @@ The frontend expects the API at `/api` by default. For a separately hosted Worke
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 - `GET /api/dashboard`
-- `POST /api/vip/checkout` (authenticated; only enabled and priced packages)
-- `POST /api/webhooks/korapay` (public endpoint; HMAC and server-side transaction verification)
+- `POST /api/vip/checkout` (authenticated; body accepts `packageId` and optional `provider` of `korapay` or `flutterwave`; only enabled and priced packages)
+- `POST /api/webhooks/korapay` (public endpoint; signature and server-side transaction verification)\n- `POST /api/webhooks/flutterwave` (public endpoint; secret-hash signature and server-side transaction verification)
 - `GET /api/health`
 
 The API deliberately does not expose a public route to activate a package or credit a wallet. Those operations must be driven by trusted server-side payment verification and the scheduled Worker.
