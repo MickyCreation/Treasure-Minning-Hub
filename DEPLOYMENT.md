@@ -1,16 +1,16 @@
 # Deployment checklist
 
-This is a deployment guide for the initial application scaffold. The Kora checkout/webhook flow is implemented as a scaffold, but it must be verified end-to-end in sandbox and reviewed before any VIP packages are enabled or customer funds are processed.
+This guide covers the current application scaffold. Payment and scheduled-earnings code must be tested end-to-end in provider sandbox and a non-production database before enabling VIP packages or processing real customer funds.
 
 ## 1. Configure Cloudflare D1
 
-Create a D1 database named `treasure-minning-hub`, then copy its database ID into `wrangler.toml`. Apply the schema:
+Create a D1 database named `treasure-minning-hub`, then copy its database ID into `wrangler.toml` (replace the placeholder ID). Apply the schema:
 
 ```bash
 npx wrangler d1 execute treasure-minning-hub --remote --file=worker/schema.sql
 ```
 
-Review the seed values and set real package prices only after the owner has confirmed the commercial terms. Packages ship disabled intentionally.
+The schema creates `auth_rate_limits`, used by registration/login throttling. If an older schema is already deployed, back up the database and apply a reviewed migration; rerunning the schema does not alter existing tables. Confirm the negative-wallet-debit trigger exists. Packages ship disabled and prices unset intentionally.
 
 ## 2. Deploy the Worker API
 
@@ -30,7 +30,11 @@ Set `KORA_SECRET_KEY` as a Cloudflare Worker secret (never put it in Vite variab
 
 Use Kora sandbox credentials first. Confirm the actual charge verification response shape in sandbox, duplicate webhook delivery, amount mismatch, wrong currency, failed payments, and delayed webhook handling before live use.
 
-## 4. Deploy the frontend
+## 4. Configure Flutterwave sandbox
+
+Set `FLW_SECRET_KEY` and `FLW_SECRET_HASH` as Cloudflare Worker secrets. Configure the provider webhook URL to the HTTPS Worker endpoint ending in `/api/webhooks/flutterwave`; the secret hash must match the provider dashboard. Never expose either secret through Vite variables or frontend code. Test success, failure, duplicate events, amount/currency mismatch, invalid signatures, and delayed webhooks before launch.
+
+## 5. Deploy the frontend
 
 Deploy the repository as a Vite app on Cloudflare Pages or another static host.
 
@@ -40,7 +44,7 @@ Deploy the repository as a Vite app on Cloudflare Pages or another static host.
 
 The frontend uses `/api` by default. Configure a same-origin reverse proxy for `/api/*` to the Worker, or define `VITE_API_BASE_URL` as the Worker API base URL and ensure `APP_ORIGIN` matches the exact frontend origin.
 
-## 5. Verify
+## 6. Verify
 
 - Visit `/api/health` and confirm the API returns JSON with `ok: true`.
 - Register a test account, sign out, sign back in, and verify dashboard access.
@@ -50,4 +54,4 @@ The frontend uses `/api` by default. Configure a same-origin reverse proxy for `
 
 ## Production blockers
 
-The current scaffold does not include a payment provider's signed webhook, server-side payment verification, atomic paid-package activation, withdrawal/payout processing, KYC, admin operations, rate limiting, email verification, or password reset. These are not optional if the application will accept deposits or facilitate withdrawals. Never activate a VIP package from a browser button or a client-supplied payment status.
+The scaffold includes authentication throttling, webhook signature checks, server-side payment verification, and idempotent activation scaffolding, but these flows have not been independently verified end-to-end against provider sandbox responses. Withdrawals/payouts, KYC and bank-account verification, admin operations, email verification, and password reset still require implementation and testing. Do not enable packages or process real funds until payment and earnings logic passes a documented sandbox and security test plan. Never activate a VIP package from a browser button or client-supplied payment status.
