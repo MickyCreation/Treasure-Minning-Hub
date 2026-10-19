@@ -175,6 +175,7 @@ function App() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [paymentProvider, setPaymentProvider] = useState('korapay');
+  const [checkoutPackage, setCheckoutPackage] = useState(null);
   const [authMode, setAuthMode] = useState(null);
   const [adminData, setAdminData] = useState(null);
   const [adminLoading, setAdminLoading] = useState(false);
@@ -263,7 +264,8 @@ function App() {
             <div className="section-block"><div className="section-heading"><h2>VIP package configuration</h2></div><div className="table-wrap"><table><thead><tr><th>Package</th><th>Daily earning</th><th>Price</th><th>Purchasable</th></tr></thead><tbody>{adminData.packages.map(item => <tr key={item.id}><td>{item.name}</td><td>{money(item.dailyEarning)}</td><td>{item.price == null ? 'Not configured' : money(item.price)}</td><td>{item.enabled ? 'Enabled' : 'Disabled'}</td></tr>)}</tbody></table></div></div>
           </>}
         </section>}
-        {!showAdmin && <section className="welcome-banner">
+        {!showAdmin && <>
+        <section className="welcome-banner">
           <div><span className="banner-kicker">YOUR PROGRESS, AT A GLANCE</span><h2>Small steps. Clear records.<br /><em>One focused journey.</em></h2><p>Your earnings schedule and package activity, all in one place.</p></div>
           <div className="banner-art"><div className="banner-ring" /><div className="banner-gem">✦</div><div className="banner-spark spark-a">✧</div><div className="banner-spark spark-b">✦</div></div>
         </section>
@@ -304,7 +306,7 @@ function App() {
             {(dashboard?.ledger || []).length ? dashboard.ledger.map(item => <tr key={item.id}><td><strong>{item.description}</strong><small>{item.type}</small></td><td className="reference-cell">{item.reference}</td><td>{new Date(item.createdAt).toLocaleString()}</td><td className={item.amount >= 0 ? 'positive-amount' : ''}>{item.amount >= 0 ? '+' : ''}{money(item.amount)}</td></tr>) : <tr><td colSpan="4" className="empty-state compact-empty">No wallet transactions recorded yet.</td></tr>}
           </tbody></table></div>
         </section>
-        </section>}
+        </>}
         <footer className="footer"><span>© {new Date().getFullYear()} Treasure Minning Hub</span><span>Secure by design · Transparent records</span></footer>
       </main>
     </div>
