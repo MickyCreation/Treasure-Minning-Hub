@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS payment_orders (
 );
 CREATE INDEX IF NOT EXISTS payment_orders_user_created_idx ON payment_orders(user_id,created_at DESC);
 CREATE INDEX IF NOT EXISTS payment_orders_status_idx ON payment_orders(status,created_at);
-\nCREATE TABLE IF NOT EXISTS payment_events (
+
+CREATE TABLE IF NOT EXISTS payment_events (
   provider TEXT NOT NULL,
   provider_reference TEXT NOT NULL,
   user_id TEXT NOT NULL REFERENCES users(id),
