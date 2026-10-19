@@ -257,6 +257,138 @@ async function handleKoraWebhook(request, env) {
   return json({ ok: true });
 }
 
+async function createFlutterwaveCheckout(user, packageId, env) {
+  if (!env.FLW_SECRET_KEY || !env.FLW_SECRET_HASH) {
+    return json({ error: 'Flutterwave is not configured yet. Please try again later.' }, 503);
+  }
+  const pkg = await env.DB.prepare(
+    'SELECT id,level,name,price_kobo,enabled FROM vip_packages WHERE id=?'
+  ).bind(packageId).first();
+  if (!pkg || !pkg.enabled || !Number.isInteger(pkg.price_kobo) || pkg.price_kobo <= 0) {
+    return json({ error: 'This VIP package is not available for purchase yet.' }, 409);
+  }
+  const reference = `FLW-${crypto.randomUUID().replaceAll('-', '').toUpperCase()}`;
+  const now = new Date().toISOString();
+  await env.DB.prepare(`INSERT INTO payment_orders
+    (reference,user_id,package_id,amount_kobo,currency,status,created_at,updated_at)
+    VALUES (?,?,?,?,'NGN','pending',?,?)`)
+    .bind(reference, user.id, pkg.id, pkg.price_kobo, now, now).run();
+  const origin = (env.APP_ORIGIN || '').split(',')[0].trim();
+  if (!origin.startsWith('https://')) {
+    await env.DB.prepare("UPDATE payment_orders SET status='failed',updated_at=? WHERE reference=? AND status='pending'")
+      .bind(new Date().toISOString(), reference).run();
+    return json({ error: 'A secure HTTPS application URL is required for checkout.' }, 503);
+  }
+  let response;
+  try {
+    response = await fetch('https://api.flutterwave.com/v3/payments', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${env.FLW_SECRET_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tx_ref: reference,
+        amount: (pkg.price_kobo / 100).toFixed(2),
+        currency: 'NGN',
+        redirect_url: `${origin}/?payment=complete&provider=flutterwave`,
+        customer: { email: user.email, name: user.name },
+        customizations: { title: 'Treasure Minning Hub', description: `Purchase ${pkg.name}` },
+        meta: { package_id: String(pkg.id), user_id: user.id },
+      }),
+    });
+  } catch {
+    await env.DB.prepare("UPDATE payment_orders SET status='failed',updated_at=? WHERE reference=? AND status='pending'")
+      .bind(new Date().toISOString(), reference).run();
+    return json({ error: 'Could not contact Flutterwave. Please try again.' }, 502);
+  }
+  const payload = await response.json().catch(() => ({}));
+  const checkoutUrl = payload?.data?.link;
+  if (!response.ok || payload?.status !== 'success' || typeof checkoutUrl !== 'string' ||
+      !checkoutUrl.startsWith('https://checkout.flutterwave.com/')) {
+    await env.DB.prepare("UPDATE payment_orders SET status='failed',updated_at=? WHERE reference=? AND status='pending'")
+      .bind(new Date().toISOString(), reference).run();
+    console.error('Flutterwave checkout initialization failed', response.status);
+    return json({ error: 'Flutterwave checkout could not be created. Please try again.' }, 502);
+  }
+  await env.DB.prepare("UPDATE payment_orders SET checkout_url=?,updated_at=? WHERE reference=? AND status='pending'")
+    .bind(checkoutUrl, new Date().toISOString(), reference).run();
+  return json({ checkoutUrl, reference, provider: 'flutterwave' });
+}
+
+async function handleFlutterwaveWebhook(request, env) {
+  if (!env.FLW_SECRET_KEY || !env.FLW_SECRET_HASH) return json({ error: 'Flutterwave webhook is not configured.' }, 503);
+  const signature = request.headers.get('verif-hash') || '';
+  if (!constantTimeEqual(signature, env.FLW_SECRET_HASH)) return json({ error: 'Invalid Flutterwave webhook signature.' }, 401);
+  const raw = await request.text();
+  if (raw.length > 128 * 1024) return json({ error: 'Payload too large.' }, 413);
+  let body;
+  try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid JSON.' }, 400); }
+  const event = body?.event;
+  const data = body?.data;
+  if (!data || typeof data !== 'object') return json({ error: 'Invalid webhook payload.' }, 400);
+  if (event !== 'charge.completed' || String(data.status || '').toLowerCase() !== 'successful') {
+    return json({ ok: true, ignored: true });
+  }
+  const reference = data.tx_ref;
+  const transactionId = data.id;
+  if (typeof reference !== 'string' || !reference.startsWith('FLW-') || !transactionId) {
+    return json({ error: 'Invalid Flutterwave transaction reference.' }, 400);
+  }
+  const order = await env.DB.prepare(
+    'SELECT reference,user_id,package_id,amount_kobo,currency,status FROM payment_orders WHERE reference=?'
+  ).bind(reference).first();
+  if (!order) return json({ error: 'Unknown payment reference.' }, 404);
+  if (order.status === 'processed') return json({ ok: true, duplicate: true });
+  if (order.status !== 'pending') return json({ error: 'Payment order is not pending.' }, 409);
+
+  let verifyResponse;
+  try {
+    verifyResponse = await fetch(`https://api.flutterwave.com/v3/transactions/${encodeURIComponent(String(transactionId))}/verify`, {
+      headers: { 'Authorization': `Bearer ${env.FLW_SECRET_KEY}`, 'Accept': 'application/json' },
+    });
+  } catch {
+    return json({ error: 'Flutterwave verification is temporarily unavailable.' }, 502);
+  }
+  const verified = await verifyResponse.json().catch(() => ({}));
+  const tx = verified?.data;
+  const amountKobo = Math.round(Number(tx?.amount) * 100);
+  if (!verifyResponse.ok || verified?.status !== 'success' || !tx ||
+      String(tx.status || '').toLowerCase() !== 'successful' ||
+      String(tx.tx_ref || '') !== order.reference ||
+      String(tx.currency || '').toUpperCase() !== order.currency ||
+      !Number.isFinite(amountKobo) || amountKobo < order.amount_kobo) {
+    console.error('Flutterwave transaction verification did not match order', reference, verifyResponse.status);
+    return json({ error: 'Flutterwave payment verification did not match the order.' }, 409);
+  }
+
+  const now = new Date().toISOString();
+  const activationId = crypto.randomUUID();
+  await env.DB.batch([
+    env.DB.prepare(`INSERT OR IGNORE INTO payment_events
+      (provider,provider_reference,user_id,package_id,amount_kobo,status,created_at)
+      SELECT 'flutterwave',?,?,?,?,'verified',?
+      WHERE EXISTS (SELECT 1 FROM payment_orders WHERE reference=? AND status='pending')`)
+      .bind(order.reference, order.user_id, order.package_id, order.amount_kobo, now, order.reference),
+    env.DB.prepare(`INSERT OR IGNORE INTO user_vip_packages
+      (id,user_id,package_id,payment_provider,payment_reference,status,activated_at,last_credited_at,expires_at)
+      SELECT ?,?,?, 'flutterwave',?,'active',?,?,NULL
+      WHERE EXISTS (SELECT 1 FROM payment_events WHERE provider='flutterwave' AND provider_reference=? AND status='verified')
+        AND EXISTS (SELECT 1 FROM vip_packages WHERE id=? AND enabled=1 AND price_kobo=?)
+        AND EXISTS (SELECT 1 FROM payment_orders WHERE reference=? AND status='pending')`)
+      .bind(activationId, order.user_id, order.package_id, order.reference, now, now,
+        order.reference, order.package_id, order.amount_kobo, order.reference),
+    env.DB.prepare(`UPDATE payment_events SET status='processed'
+      WHERE provider='flutterwave' AND provider_reference=?
+        AND EXISTS (SELECT 1 FROM user_vip_packages WHERE payment_provider='flutterwave' AND payment_reference=?)`)
+      .bind(order.reference, order.reference),
+    env.DB.prepare(`UPDATE payment_orders SET status='processed',updated_at=?
+      WHERE reference=? AND status='pending'
+        AND EXISTS (SELECT 1 FROM user_vip_packages WHERE payment_provider='flutterwave' AND payment_reference=?)`)
+      .bind(now, order.reference, order.reference),
+  ]);
+  const finalOrder = await env.DB.prepare('SELECT status FROM payment_orders WHERE reference=?').bind(order.reference).first();
+  if (finalOrder?.status !== 'processed') return json({ error: 'Payment could not be activated. Please retry webhook delivery.' }, 500);
+  return json({ ok: true });
+}
+
 async function handle(request, env) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
@@ -266,6 +398,7 @@ async function handle(request, env) {
   if (path === '/api/health' && request.method === 'GET') return json({ ok: true, service: 'Treasure Minning Hub API' });
 
   if (path === '/api/webhooks/korapay' && request.method === 'POST') return handleKoraWebhook(request, env);
+  if (path === '/api/webhooks/flutterwave' && request.method === 'POST') return handleFlutterwaveWebhook(request, env);
 
   if (path === '/api/auth/register' && request.method === 'POST') {
     assertSameOrigin(request, env);
@@ -331,6 +464,9 @@ async function handle(request, env) {
     const body = await request.json().catch(() => null);
     const packageId = Number(body?.packageId);
     if (!Number.isSafeInteger(packageId) || packageId < 1 || packageId > 6) return json({ error: 'Choose a valid VIP package.' }, 400);
+    const provider = typeof body?.provider === 'string' ? body.provider.toLowerCase() : 'korapay';
+    if (provider === 'flutterwave') return createFlutterwaveCheckout(user, packageId, env);
+    if (provider !== 'korapay') return json({ error: 'Choose a supported payment provider.' }, 400);
     return createKoraCheckout(user, packageId, env);
   }
 
