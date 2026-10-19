@@ -25,3 +25,7 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
 /* Auth navigation: keep the return-to-home action clear on small screens. */
 .auth-back { display: inline-flex; align-self: flex-start; margin: 0 0 1.25rem; padding: 0; border: 0; background: transparent; color: var(--muted, #78837d); cursor: pointer; font: inherit; }
 .auth-back:hover { color: var(--accent, #c9a45c); }
+
+
+/* Sign-up requirements and restricted administrator workspace */
+.terms-check{display:flex;align-items:flex-start;gap:10px;font-size:11px;line-height:1.6;color:var(--muted);font-weight:400}.terms-check input{width:16px;height:16px;flex:0 0 16px;margin:2px 0 0;accent-color:var(--gold)}.admin-panel{margin-bottom:28px}.admin-panel>.section-block{margin-top:28px}.admin-stats{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:26px}.admin-panel .table-wrap{overflow-x:auto}.admin-panel table{min-width:640px}.admin-panel .section-heading h2{font:700 18px Manrope,sans-serif;margin:0}
