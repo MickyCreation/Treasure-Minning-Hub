@@ -178,29 +178,50 @@ async function handle(request, env) {
 async function creditDuePackages(env) {
   const now = new Date();
   const nowIso = now.toISOString();
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  // Expire first, so an activation past its configured expiry cannot earn again.
+  await env.DB.prepare(
+    "UPDATE user_vip_packages SET status='expired' WHERE status='active' AND expires_at IS NOT NULL AND expires_at<=?"
+  ).bind(nowIso).run();
+
   const due = await env.DB.prepare(`SELECT a.id,a.user_id,a.package_id,a.last_credited_at,a.expires_at,p.daily_earning_kobo,p.name
     FROM user_vip_packages a JOIN vip_packages p ON p.id=a.package_id
     WHERE a.status='active' AND a.last_credited_at<=? AND (a.expires_at IS NULL OR a.expires_at>?)
-    ORDER BY a.last_credited_at ASC LIMIT 500`).bind(new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(), nowIso).all();
+    ORDER BY a.last_credited_at ASC LIMIT 500`)
+    .bind(new Date(now.getTime() - dayMs).toISOString(), nowIso).all();
 
   for (const item of due.results || []) {
     const last = new Date(item.last_credited_at).getTime();
-    const duePeriods = Math.floor((now.getTime() - last) / (24 * 60 * 60 * 1000));
-    if (!Number.isFinite(duePeriods) || duePeriods < 1) continue;
-    // Process one period per activation per cron run. The unique activation/period key and ledger trigger
-    // ensure a retried or overlapping cron invocation cannot credit the same period twice.
-    const periodNumber = Math.floor(last / (24 * 60 * 60 * 1000)) + 1;
+    if (!Number.isFinite(last) || now.getTime() - last < dayMs) continue;
+
+    // A stable per-activation period number plus unique constraints prevents double-crediting.
+    const periodNumber = Math.floor(last / dayMs) + 1;
     const ledgerId = crypto.randomUUID();
     const reference = `VIP-${item.id}-${periodNumber}`;
-    const inserted = await env.DB.prepare(`INSERT OR IGNORE INTO wallet_ledger
-      (id,user_id,activation_id,entry_type,amount_kobo,period_number,reference,description,created_at)
-      VALUES (?,?,?,'vip_earning',?,?,?, ?,?)`)
-      .bind(ledgerId, item.user_id, item.id, item.daily_earning_kobo, periodNumber, reference, `${item.name} daily earning`, nowIso).run();
-    if (inserted.meta?.changes > 0) {
-      const newLast = new Date(last + 24 * 60 * 60 * 1000).toISOString();
-      await env.DB.prepare(`UPDATE user_vip_packages SET last_credited_at=? WHERE id=? AND last_credited_at=? AND status='active'`)
-        .bind(newLast, item.id, item.last_credited_at).run();
-    }
+    const newLast = new Date(last + dayMs).toISOString();
+
+    // D1 batch executes these statements atomically. The timestamp compare prevents a stale
+    // overlapping cron run from moving the activation backwards or advancing it twice.
+    // If a prior deployment left a ledger row without advancing the timestamp, this safely
+    // repairs the cursor without inserting a duplicate credit.
+    await env.DB.batch([
+      env.DB.prepare(`INSERT OR IGNORE INTO wallet_ledger
+        (id,user_id,activation_id,entry_type,amount_kobo,period_number,reference,description,created_at)
+        SELECT ?,?,?, 'vip_earning',?,?,?, ?,?
+        WHERE EXISTS (
+          SELECT 1 FROM user_vip_packages
+          WHERE id=? AND user_id=? AND status='active' AND last_credited_at=?
+            AND (expires_at IS NULL OR expires_at>?)
+        )`)
+        .bind(ledgerId, item.user_id, item.id, item.daily_earning_kobo, periodNumber,
+          reference, `${item.name} daily earning`, nowIso, item.id, item.user_id,
+          item.last_credited_at, nowIso),
+      env.DB.prepare(`UPDATE user_vip_packages SET last_credited_at=?
+        WHERE id=? AND user_id=? AND status='active' AND last_credited_at=?
+          AND EXISTS (SELECT 1 FROM wallet_ledger WHERE activation_id=? AND period_number=? AND reference=?)`)
+        .bind(newLast, item.id, item.user_id, item.last_credited_at, item.id, periodNumber, reference),
+    ]);
   }
 }
 
