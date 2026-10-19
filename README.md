@@ -41,6 +41,8 @@ The frontend expects the API at `/api` by default. For a separately hosted Worke
 
 ## Before production
 
+- Authentication endpoints now include a database-backed per-IP rate limit (5 registration attempts or 10 sign-in attempts per 15-minute window). Apply the updated `worker/schema.sql` to the D1 database before deploying this Worker revision; the schema is idempotent and preserves existing tables/data.
+
 - Configure Kora secret as a Cloudflare Worker secret, set the public webhook URL to `/api/webhooks/korapay`, and test checkout + webhook verification in sandbox. Review amount/currency/reference checks and idempotent activation before enabling packages.
 - Configure real VIP prices and an explicit expiry policy before enabling packages.
 - Add rate limiting and abuse monitoring to authentication endpoints, email verification, password reset, and appropriate account recovery.
