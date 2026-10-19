@@ -64,6 +64,7 @@ function AuthScreen({ onAuth, initialMode = 'login', onBack }) {
       </section>
       <section className="auth-panel">
         <div className="mobile-brand brand-mark">T<span>✦</span></div>
+        <button type="button" className="switch-auth auth-back" onClick={onBack}>← Back to home</button>
         <p className="eyebrow">{mode === 'login' ? 'WELCOME BACK' : 'LET’S GET STARTED'}</p>
         <h2>{mode === 'login' ? 'Sign in to your hub' : 'Create your account'}</h2>
         <p className="muted">{mode === 'login' ? 'Your dashboard is just a sign-in away.' : 'Set up your secure account in a minute.'}</p>
