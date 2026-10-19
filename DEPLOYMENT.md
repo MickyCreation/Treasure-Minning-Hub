@@ -24,6 +24,13 @@ npx wrangler deploy
 
 Set `APP_ORIGIN` to the exact HTTPS origin of the deployed frontend. Do not use a wildcard origin with credentialed cookies. The session cookie is Secure and will not work over plain HTTP in production.
 
+
+## Administrator access
+
+Set the Worker environment variable `ADMIN_EMAILS` to a comma-separated allowlist of exact administrator email addresses, for example `admin@example.com,ops@example.com`. Use addresses that already belong to trusted accounts and ensure the matching account has registered. Do not add a public sign-up email or expose admin controls based only on a browser-side flag. The `/api/admin/overview` route independently checks the authenticated account email against this server-side allowlist and returns `403` for other users. Treat access to account email addresses and payment records as sensitive; limit the allowlist to the smallest practical group.
+
+The administrator screen is read-only for monitoring: it shows aggregate counts, recent users, payment orders, and package settings. It does not implement payouts, user suspension, manual wallet adjustments, or editing VIP prices/enabled flags.
+
 ## 3. Configure Kora payments
 
 Set `KORA_SECRET_KEY` as a Cloudflare Worker secret (never put it in Vite variables or frontend code). Set `KORA_WEBHOOK_URL` to the public HTTPS URL ending in `/api/webhooks/korapay`. Optionally set `KORA_API_BASE` for the Kora sandbox API base while testing. Keep `APP_ORIGIN` set to the exact frontend origin. The frontend checkout button remains disabled until the selected package has a configured price and is enabled in D1.
