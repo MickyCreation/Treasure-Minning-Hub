@@ -30,8 +30,8 @@ function Countdown({ timestamp }) {
   return <span>{hours}h {minutes}m {secs}s</span>;
 }
 
-function AuthScreen({ onAuth }) {
-  const [mode, setMode] = useState('login');
+function AuthScreen({ onAuth, initialMode = 'login', onBack }) {
+  const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -81,6 +81,82 @@ function AuthScreen({ onAuth }) {
   );
 }
 
+function LandingScreen({ onSignIn, onRegister }) {
+  const packages = [
+    ['VIP 1', '₦200', 'daily earning'],
+    ['VIP 2', '₦450', 'daily earning'],
+    ['VIP 3', '₦1,200', 'daily earning'],
+    ['VIP 4', '₦2,200', 'daily earning'],
+    ['VIP 5', '₦8,400', 'daily earning'],
+    ['VIP 6', '₦14,500', 'daily earning'],
+  ];
+  return (
+    <main className="landing-page">
+      <header className="landing-nav">
+        <a className="brand landing-brand" href="#home" aria-label="Treasure Minning Hub home">
+          <span className="brand-icon">T✦</span><span>Treasure <b>Minning Hub</b></span>
+        </a>
+        <nav className="landing-links" aria-label="Main navigation">
+          <a href="#how-it-works">How it works</a><a href="#vip-levels">VIP levels</a><a href="#security">Security</a>
+        </nav>
+        <div className="landing-nav-actions">
+          <button className="nav-signin" onClick={onSignIn}>Sign in</button>
+          <button className="nav-cta" onClick={onRegister}>Get started <span>↗</span></button>
+        </div>
+      </header>
+
+      <section className="landing-hero" id="home">
+        <div className="hero-copy">
+          <div className="hero-pill"><span className="secure-dot" /> YOUR GOALS. YOUR DASHBOARD. YOUR PACE.</div>
+          <h1>Make room for<br />your next <em>big thing.</em></h1>
+          <p className="hero-description">A clearer way to manage your Treasure Minning Hub account, track package activity and follow your wallet records — all from one simple dashboard.</p>
+          <div className="hero-actions">
+            <button className="hero-primary" onClick={onRegister}>Create your account <span>↗</span></button>
+            <button className="hero-secondary" onClick={onSignIn}>I already have an account</button>
+          </div>
+          <div className="hero-trust"><span>✦</span> Clear activity records <i /> <span>✦</span> Secure account access</div>
+        </div>
+        <div className="hero-visual" aria-label="Illustration of the Treasure Minning Hub dashboard">
+          <div className="visual-glow" />
+          <div className="visual-orbit orbit-a" /><div className="visual-orbit orbit-b" />
+          <div className="hero-coin coin-large">₦</div><div className="hero-coin coin-small">✦</div>
+          <div className="preview-card">
+            <div className="preview-head"><span className="preview-logo">T✦</span><div><b>Your treasure hub</b><small>ACCOUNT OVERVIEW</small></div><span className="preview-dots">•••</span></div>
+            <div className="preview-balance"><small>WALLET OVERVIEW</small><strong>₦ ••••••</strong><span>Balance shown after sign in</span></div>
+            <div className="preview-chart"><div className="chart-label"><span>Activity overview</span><span>Recent</span></div><div className="chart-bars"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></div>
+            <div className="preview-foot"><span><i /> Account dashboard</span><span>Secure access ↗</span></div>
+          </div>
+          <div className="floating-note"><span className="note-icon">✓</span><div><b>Everything in one place</b><small>Packages · wallet · activity</small></div></div>
+        </div>
+        <div className="hero-bottom-label"><span>01 / A CLEARER VIEW</span><span>BUILT FOR YOUR EVERYDAY</span></div>
+      </section>
+
+      <section className="landing-benefits" id="how-it-works">
+        <div className="landing-section-intro"><span className="eyebrow">A SIMPLE PLACE TO START</span><h2>Less guesswork.<br /><em>More clarity.</em></h2><p>Know where to go, what is active and what has been recorded. Your account tools are organised to keep things straightforward.</p></div>
+        <div className="benefit-list">
+          <article><span className="benefit-icon">◫</span><div><h3>One personal dashboard</h3><p>See account information, package status and wallet activity in one place.</p></div><span className="benefit-number">01</span></article>
+          <article><span className="benefit-icon">◇</span><div><h3>Package details at a glance</h3><p>Review available VIP levels and their displayed daily earning settings before making a decision.</p></div><span className="benefit-number">02</span></article>
+          <article><span className="benefit-icon">↗</span><div><h3>Track recorded activity</h3><p>Keep an eye on transactions and package events recorded in your account.</p></div><span className="benefit-number">03</span></article>
+        </div>
+      </section>
+
+      <section className="landing-vips" id="vip-levels">
+        <div className="landing-section-heading"><div><span className="eyebrow">EXPLORE THE LEVELS</span><h2>Find the level that<br /><em>fits your plan.</em></h2></div><p>Compare the displayed daily earning settings. Package availability and purchase prices depend on the platform's current configuration.</p></div>
+        <div className="landing-vip-grid">{packages.map((pkg, i) => <article className={i === 2 ? 'landing-vip featured-vip' : 'landing-vip'} key={pkg[0]}><div className="vip-card-top"><span>{pkg[0]}</span><b>{['◈','✧','✦','◇','✺','✷'][i]}</b></div><strong>{pkg[1]}</strong><small>{pkg[2]}</small><div className="vip-card-rule" /><p>{i === 2 ? 'A balanced level to compare' : 'Review package details after sign in'}</p><button onClick={onRegister}>Explore package <span>↗</span></button></article>)}</div>
+        <p className="landing-disclaimer">Displayed figures are package settings, not guaranteed returns. Review all terms and package prices before purchasing. Do not spend money you cannot afford to lose.</p>
+      </section>
+
+      <section className="landing-security" id="security">
+        <div className="security-emblem"><span>✦</span><i /><b>SECURE<br />BY DESIGN</b></div>
+        <div><span className="eyebrow">YOUR ACCOUNT MATTERS</span><h2>A little more confidence<br />in every sign-in.</h2><p>Treasure Minning Hub is designed around private account access, clear transaction references and server-verified payment events. Always keep your password private and confirm payment details before proceeding.</p><button className="hero-secondary" onClick={onRegister}>Create your account <span>↗</span></button></div>
+      </section>
+
+      <section className="landing-final-cta"><span className="eyebrow">READY WHEN YOU ARE</span><h2>Your hub starts here.</h2><p>Create an account to access your personal dashboard and package information.</p><button className="hero-primary" onClick={onRegister}>Get started <span>↗</span></button></section>
+      <footer className="landing-footer"><a className="brand landing-brand" href="#home"><span className="brand-icon">T✦</span><span>Treasure <b>Minning Hub</b></span></a><span>© {new Date().getFullYear()} Treasure Minning Hub</span><span>Secure account access · Clear records</span></footer>
+    </main>
+  );
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [dashboard, setDashboard] = useState(null);
@@ -88,6 +164,7 @@ function App() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [paymentProvider, setPaymentProvider] = useState('korapay');
+  const [authMode, setAuthMode] = useState(null);
 
   const refresh = useCallback(async () => {
     const data = await request('/dashboard');
@@ -130,7 +207,8 @@ function App() {
   }
 
   if (loading) return <div className="loading-screen"><div className="spinner" /><p>Opening your treasure hub…</p></div>;
-  if (!user) return <AuthScreen onAuth={async account => { setUser(account); try { await refresh(); } catch (err) { setError(err.message); } }} />;
+  if (!user && !authMode) return <LandingScreen onSignIn={() => setAuthMode('login')} onRegister={() => setAuthMode('register')} />;
+  if (!user) return <AuthScreen onAuth={async account => { setUser(account); setAuthMode(null); try { await refresh(); } catch (err) { setError(err.message); } }} initialMode={authMode} onBack={() => setAuthMode(null)} />;
 
   return (
     <div className="app-shell">
