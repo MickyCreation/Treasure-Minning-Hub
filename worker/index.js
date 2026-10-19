@@ -92,8 +92,9 @@ function assertSameOrigin(request, env) {
 function naira(kobo) { return Number(kobo || 0) / 100; }
 
 function isAdminUser(user, env) {
-  const allowed = (env.ADMIN_EMAILS || '').split(',').map(cleanEmail).filter(Boolean);
-  return allowed.includes(cleanEmail(user?.email));
+  // Use immutable account IDs, not email addresses: registration has no email-verification flow yet.
+  const allowed = (env.ADMIN_USER_IDS || '').split(',').map(value => value.trim()).filter(Boolean);
+  return Boolean(user?.id && allowed.includes(user.id));
 }
 async function dashboard(user, env) {
   const [account, packages, activations, ledger, total] = await Promise.all([
