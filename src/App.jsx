@@ -166,6 +166,10 @@ function App() {
   const [error, setError] = useState('');
   const [paymentProvider, setPaymentProvider] = useState('korapay');
   const [authMode, setAuthMode] = useState(null);
+  const [adminData, setAdminData] = useState(null);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminError, setAdminError] = useState('');
+  const [showAdmin, setShowAdmin] = useState(false);
 
   const refresh = useCallback(async () => {
     const data = await request('/dashboard');
@@ -198,13 +202,20 @@ function App() {
 
   async function logout() {
     try { await request('/auth/logout', { method: 'POST', body: '{}' }); } catch {}
-    setUser(null); setDashboard(null); setNotice('You have signed out.');
+    setUser(null); setDashboard(null); setAdminData(null); setShowAdmin(false); setNotice('You have signed out.');
   }
 
   async function reload() {
     setError('');
     try { await refresh(); setNotice('Dashboard refreshed.'); }
     catch (err) { setError(err.message); }
+  }
+
+  async function loadAdminOverview() {
+    setAdminLoading(true); setAdminError('');
+    try { setAdminData(await request('/admin/overview')); setShowAdmin(true); }
+    catch (err) { setAdminError(err.message); setShowAdmin(true); }
+    finally { setAdminLoading(false); }
   }
 
   if (loading) return <div className="loading-screen"><div className="spinner" /><p>Opening your treasure hub…</p></div>;
@@ -222,10 +233,27 @@ function App() {
         <div className="sidebar-bottom"><div className="secure-pill"><span className="secure-dot" /> Account protected</div><p>Stay sharp. Keep your login private.</p></div>
       </aside>
       <main className="main-content" id="overview">
-        <header className="topbar"><div><span className="eyebrow">YOUR PERSONAL DASHBOARD</span><h1>Good to see you, {user.name?.split(' ')[0] || 'there'} <span className="wave">✦</span></h1></div><div className="top-actions"><button className="icon-button" onClick={reload} title="Refresh dashboard" aria-label="Refresh dashboard">↻</button><div className="avatar">{(user.name || user.email || 'T').slice(0,1).toUpperCase()}</div><button className="logout-button" onClick={logout}>Sign out</button></div></header>
+        <header className="topbar"><div><span className="eyebrow">YOUR PERSONAL DASHBOARD</span><h1>Good to see you, {user.name?.split(' ')[0] || 'there'} <span className="wave">✦</span></h1></div><div className="top-actions">{user.isAdmin && <button className="logout-button" onClick={showAdmin ? () => setShowAdmin(false) : loadAdminOverview}>{showAdmin ? 'User dashboard' : 'Admin dashboard'}</button>}<button className="icon-button" onClick={reload} title="Refresh dashboard" aria-label="Refresh dashboard">↻</button><div className="avatar">{(user.name || user.email || 'T').slice(0,1).toUpperCase()}</div><button className="logout-button" onClick={logout}>Sign out</button></div></header>
         {notice && <div className="notice" role="status">{notice}<button onClick={() => setNotice('')} aria-label="Dismiss">×</button></div>}
         {error && <div role="alert" className="error-message page-error">{error}</div>}
-        <section className="welcome-banner">
+        {showAdmin && <section className="section-block admin-panel" aria-label="Administrator dashboard">
+          <div className="section-heading"><div><span className="eyebrow">RESTRICTED WORKSPACE</span><h2>Administrator dashboard</h2></div><button className="text-button" onClick={loadAdminOverview} disabled={adminLoading}>{adminLoading ? 'Loading…' : 'Refresh data ↻'}</button></div>
+          <p className="section-intro">Operational overview and recent records. Sensitive actions such as payouts and package configuration are not available in this view.</p>
+          {adminError && <div role="alert" className="error-message">{adminError}</div>}
+          {adminLoading && !adminData ? <p className="muted">Loading administrator data…</p> : adminData && <>
+            <div className="stats-grid admin-stats">
+              <article className="stat-card"><div className="stat-heading">REGISTERED USERS</div><strong>{adminData.summary.users}</strong><p>Total accounts</p></article>
+              <article className="stat-card"><div className="stat-heading">ACTIVE VIP PACKAGES</div><strong>{adminData.summary.activePackages}</strong><p>Across all users</p></article>
+              <article className="stat-card"><div className="stat-heading">PENDING PAYMENTS</div><strong>{adminData.summary.pendingOrders}</strong><p>Awaiting provider confirmation</p></article>
+              <article className="stat-card"><div className="stat-heading">PROCESSED PAYMENTS</div><strong>{adminData.summary.processedOrders}</strong><p>Marked processed</p></article>
+              <article className="stat-card"><div className="stat-heading">VIP CREDITS RECORDED</div><strong>{money(adminData.summary.totalVipCredits)}</strong><p>Ledger total</p></article>
+            </div>
+            <div className="section-block"><div className="section-heading"><h2>Recent registrations</h2></div><div className="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Joined</th></tr></thead><tbody>{adminData.users.map(item => <tr key={item.id}><td>{item.name}</td><td>{item.email}</td><td>{new Date(item.createdAt).toLocaleString()}</td></tr>)}</tbody></table></div></div>
+            <div className="section-block"><div className="section-heading"><h2>Recent payment orders</h2></div><div className="table-wrap"><table><thead><tr><th>Reference</th><th>User ID</th><th>VIP</th><th>Amount</th><th>Status</th></tr></thead><tbody>{adminData.orders.map(item => <tr key={item.reference}><td className="reference-cell">{item.reference}</td><td>{item.user_id}</td><td>VIP {item.package_id}</td><td>{money(item.amount)}</td><td>{item.status}</td></tr>)}</tbody></table></div></div>
+            <div className="section-block"><div className="section-heading"><h2>VIP package configuration</h2></div><div className="table-wrap"><table><thead><tr><th>Package</th><th>Daily earning</th><th>Price</th><th>Purchasable</th></tr></thead><tbody>{adminData.packages.map(item => <tr key={item.id}><td>{item.name}</td><td>{money(item.dailyEarning)}</td><td>{item.price == null ? 'Not configured' : money(item.price)}</td><td>{item.enabled ? 'Enabled' : 'Disabled'}</td></tr>)}</tbody></table></div></div>
+          </>}
+        </section>}
+        {!showAdmin && <section className="welcome-banner">
           <div><span className="banner-kicker">YOUR PROGRESS, AT A GLANCE</span><h2>Small steps. Clear records.<br /><em>One focused journey.</em></h2><p>Your earnings schedule and package activity, all in one place.</p></div>
           <div className="banner-art"><div className="banner-ring" /><div className="banner-gem">✦</div><div className="banner-spark spark-a">✧</div><div className="banner-spark spark-b">✦</div></div>
         </section>
@@ -266,6 +294,7 @@ function App() {
             {(dashboard?.ledger || []).length ? dashboard.ledger.map(item => <tr key={item.id}><td><strong>{item.description}</strong><small>{item.type}</small></td><td className="reference-cell">{item.reference}</td><td>{new Date(item.createdAt).toLocaleString()}</td><td className={item.amount >= 0 ? 'positive-amount' : ''}>{item.amount >= 0 ? '+' : ''}{money(item.amount)}</td></tr>) : <tr><td colSpan="4" className="empty-state compact-empty">No wallet transactions recorded yet.</td></tr>}
           </tbody></table></div>
         </section>
+        </section>}
         <footer className="footer"><span>© {new Date().getFullYear()} Treasure Minning Hub</span><span>Secure by design · Transparent records</span></footer>
       </main>
     </div>
