@@ -29,3 +29,5 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
 
 /* Sign-up requirements and restricted administrator workspace */
 .terms-check{display:flex;align-items:flex-start;gap:10px;font-size:11px;line-height:1.6;color:var(--muted);font-weight:400}.terms-check input{width:16px;height:16px;flex:0 0 16px;margin:2px 0 0;accent-color:var(--gold)}.admin-panel{margin-bottom:28px}.admin-panel>.section-block{margin-top:28px}.admin-stats{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:26px}.admin-panel .table-wrap{overflow-x:auto}.admin-panel table{min-width:640px}.admin-panel .section-heading h2{font:700 18px Manrope,sans-serif;margin:0}
+
+.admin-search{display:grid;gap:8px;max-width:440px;margin:0 0 14px;color:var(--muted);font-size:12px}.admin-search input{width:100%;min-height:42px;border:1px solid var(--line,#dfe5df);border-radius:10px;padding:10px 12px;background:var(--surface,#fff);color:inherit;font:inherit}.admin-search input:focus{outline:2px solid var(--gold,#c9a45c);outline-offset:1px}.reference-cell{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;overflow-wrap:anywhere;max-width:240px}
