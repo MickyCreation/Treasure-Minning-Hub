@@ -155,7 +155,7 @@ async function createKoraCheckout(user, packageId, env) {
   }
   const payload = await response.json().catch(() => ({}));
   const checkoutUrl = payload?.data?.checkout_url;
-  if (!response.ok || payload?.status !== true || typeof checkoutUrl !== 'string' ||
+  if (!response.ok || !(payload?.status === true || payload?.status === 'true') || typeof checkoutUrl !== 'string' ||
       !checkoutUrl.startsWith('https://checkout.korapay.com/')) {
     await env.DB.prepare("UPDATE payment_orders SET status='failed',updated_at=? WHERE reference=? AND status='pending'")
       .bind(new Date().toISOString(), reference).run();
@@ -200,7 +200,7 @@ async function handleKoraWebhook(request, env) {
   });
   const verification = await verificationResponse.json().catch(() => ({}));
   const tx = verification?.data;
-  if (!verificationResponse.ok || verification?.status !== true || !tx ||
+  if (!verificationResponse.ok || !(verification?.status === true || verification?.status === 'true') || !tx ||
       String(tx.status || '').toLowerCase() !== 'success' ||
       String(tx.currency || '').toUpperCase() !== order.currency ||
       Math.round(Number(tx.amount) * 100) !== order.amount_kobo ||
