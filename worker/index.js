@@ -90,6 +90,11 @@ function assertSameOrigin(request, env) {
   if (fetchSite === 'cross-site') throw new Error('Cross-site requests are not allowed.');
 }
 function naira(kobo) { return Number(kobo || 0) / 100; }
+
+function isAdminUser(user, env) {
+  const allowed = (env.ADMIN_EMAILS || '').split(',').map(cleanEmail).filter(Boolean);
+  return allowed.includes(cleanEmail(user?.email));
+}
 async function dashboard(user, env) {
   const [account, packages, activations, ledger, total] = await Promise.all([
     env.DB.prepare('SELECT balance_kobo FROM users WHERE id=?').bind(user.id).first(),
@@ -423,7 +428,7 @@ async function handle(request, env) {
     const token = randomHex(32);
     const expires = new Date(Date.now() + SESSION_TTL_SECONDS * 1000).toISOString();
     await env.DB.prepare('INSERT INTO sessions (token_hash,user_id,expires_at) VALUES (?,?,?)').bind(await sha256(token), id, expires).run();
-    return json({ user: { id, name, email } }, 201, { 'Set-Cookie': cookieHeader(token, SESSION_TTL_SECONDS) });
+    return json({ user: { id, name, email, isAdmin: isAdminUser({ email }, env) } }, 201, { 'Set-Cookie': cookieHeader(token, SESSION_TTL_SECONDS) });
   }
 
   if (path === '/api/auth/login' && request.method === 'POST') {
@@ -441,13 +446,13 @@ async function handle(request, env) {
     const expires = new Date(Date.now() + SESSION_TTL_SECONDS * 1000).toISOString();
     await env.DB.prepare('DELETE FROM sessions WHERE user_id=? AND expires_at<=?').bind(row.id, new Date().toISOString()).run();
     await env.DB.prepare('INSERT INTO sessions (token_hash,user_id,expires_at) VALUES (?,?,?)').bind(await sha256(token), row.id, expires).run();
-    return json({ user: { id: row.id, name: row.name, email: row.email } }, 200, { 'Set-Cookie': cookieHeader(token, SESSION_TTL_SECONDS) });
+    return json({ user: { id: row.id, name: row.name, email: row.email, isAdmin: isAdminUser(row, env) } }, 200, { 'Set-Cookie': cookieHeader(token, SESSION_TTL_SECONDS) });
   }
 
   if (path === '/api/auth/me' && request.method === 'GET') {
     const user = await authenticate(request, env);
     if (!user) return json({ error: 'Not signed in.' }, 401);
-    return json({ user });
+    return json({ user: { ...user, isAdmin: isAdminUser(user, env) } });
   }
 
   if (path === '/api/auth/logout' && request.method === 'POST') {
@@ -468,6 +473,37 @@ async function handle(request, env) {
     if (provider === 'flutterwave') return createFlutterwaveCheckout(user, packageId, env);
     if (provider !== 'korapay') return json({ error: 'Choose a supported payment provider.' }, 400);
     return createKoraCheckout(user, packageId, env);
+  }
+
+  if (path === '/api/admin/overview' && request.method === 'GET') {
+    const user = await authenticate(request, env);
+    if (!user) return json({ error: 'Please sign in to continue.' }, 401);
+    if (!isAdminUser(user, env)) return json({ error: 'Administrator access required.' }, 403);
+    const [counts, users, orders, ledger, packages] = await Promise.all([
+      env.DB.prepare(`SELECT
+        (SELECT COUNT(*) FROM users) AS users,
+        (SELECT COUNT(*) FROM user_vip_packages WHERE status='active') AS active_packages,
+        (SELECT COUNT(*) FROM payment_orders WHERE status='pending') AS pending_orders,
+        (SELECT COUNT(*) FROM payment_orders WHERE status='processed') AS processed_orders,
+        (SELECT COALESCE(SUM(amount_kobo),0) FROM wallet_ledger WHERE entry_type='vip_earning' AND amount_kobo>0) AS total_credits_kobo`).first(),
+      env.DB.prepare('SELECT id,name,email,created_at FROM users ORDER BY created_at DESC LIMIT 25').all(),
+      env.DB.prepare('SELECT reference,user_id,package_id,amount_kobo,currency,status,created_at,updated_at FROM payment_orders ORDER BY created_at DESC LIMIT 25').all(),
+      env.DB.prepare('SELECT id,user_id,entry_type,amount_kobo,reference,description,created_at FROM wallet_ledger ORDER BY created_at DESC LIMIT 25').all(),
+      env.DB.prepare('SELECT id,level,name,daily_earning_kobo,price_kobo,enabled FROM vip_packages ORDER BY level').all(),
+    ]);
+    return json({
+      summary: {
+        users: Number(counts?.users || 0),
+        activePackages: Number(counts?.active_packages || 0),
+        pendingOrders: Number(counts?.pending_orders || 0),
+        processedOrders: Number(counts?.processed_orders || 0),
+        totalVipCredits: naira(counts?.total_credits_kobo),
+      },
+      users: (users.results || []).map(item => ({ id: item.id, name: item.name, email: item.email, createdAt: item.created_at })),
+      orders: (orders.results || []).map(item => ({ ...item, amount: naira(item.amount_kobo) })),
+      ledger: (ledger.results || []).map(item => ({ ...item, amount: naira(item.amount_kobo) })),
+      packages: (packages.results || []).map(item => ({ ...item, dailyEarning: naira(item.daily_earning_kobo), price: item.price_kobo == null ? null : naira(item.price_kobo) })),
+    });
   }
 
   if (path === '/api/dashboard' && request.method === 'GET') {
