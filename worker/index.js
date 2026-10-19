@@ -241,13 +241,16 @@ async function handleKoraWebhook(request, env) {
   if (finalOrder?.status !== 'processed') return json({ error: 'Payment could not be activated. Please retry webhook delivery.' }, 500);
   return json({ ok: true });
 }
-\nasync function handle(request, env) {
+
+async function handle(request, env) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(request, env) });
   if (path.startsWith('/api/') && !allowedOrigin(request, env)) return json({ error: 'Origin not allowed.' }, 403);
 
-  if (path === '/api/health' && request.method === 'GET') return json({ ok: true, service: 'Treasure Minning Hub API' });\n\n  if (path === '/api/webhooks/korapay' && request.method === 'POST') return handleKoraWebhook(request, env);
+  if (path === '/api/health' && request.method === 'GET') return json({ ok: true, service: 'Treasure Minning Hub API' });
+
+  if (path === '/api/webhooks/korapay' && request.method === 'POST') return handleKoraWebhook(request, env);
 
   if (path === '/api/auth/register' && request.method === 'POST') {
     assertSameOrigin(request, env);
@@ -304,7 +307,17 @@ async function handleKoraWebhook(request, env) {
     return json({ ok: true }, 200, { 'Set-Cookie': cookieHeader('', 0) });
   }
 
-  if (path === '/api/vip/checkout' && request.method === 'POST') {\n    assertSameOrigin(request, env);\n    const user = await authenticate(request, env);\n    if (!user) return json({ error: 'Please sign in to continue.' }, 401);\n    const body = await request.json().catch(() => null);\n    const packageId = Number(body?.packageId);\n    if (!Number.isSafeInteger(packageId) || packageId < 1 || packageId > 6) return json({ error: 'Choose a valid VIP package.' }, 400);\n    return createKoraCheckout(user, packageId, env);\n  }\n\n  if (path === '/api/dashboard' && request.method === 'GET') {
+  if (path === '/api/vip/checkout' && request.method === 'POST') {
+    assertSameOrigin(request, env);
+    const user = await authenticate(request, env);
+    if (!user) return json({ error: 'Please sign in to continue.' }, 401);
+    const body = await request.json().catch(() => null);
+    const packageId = Number(body?.packageId);
+    if (!Number.isSafeInteger(packageId) || packageId < 1 || packageId > 6) return json({ error: 'Choose a valid VIP package.' }, 400);
+    return createKoraCheckout(user, packageId, env);
+  }
+
+  if (path === '/api/dashboard' && request.method === 'GET') {
     const user = await authenticate(request, env);
     if (!user) return json({ error: 'Please sign in to continue.' }, 401);
     return json(await dashboard(user, env));
